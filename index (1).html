@@ -1,0 +1,242 @@
+
+<<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestão Doméstica</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --primary: #4f46e5;
+            --income: #10b981;
+            --expense: #ef4444;
+            --text: #1f2937;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            padding-bottom: 50px;
+        }
+
+        /* Cards de Resumo */
+        .summary-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .card-full { grid-column: span 2; border-top: 4px solid var(--primary); }
+        .card h3 { margin: 0; font-size: 0.8rem; color: #6b7280; text-transform: uppercase; }
+        .card p { margin: 5px 0 0; font-size: 1.2rem; font-weight: bold; }
+
+        .txt-income { color: var(--income); }
+        .txt-expense { color: var(--expense); }
+
+        /* Formulário */
+        .form-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        /* Lista */
+        .history-list {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .item {
+            padding: 15px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-info b { display: block; font-size: 1rem; }
+        .item-info span { font-size: 0.75rem; color: #9ca3af; }
+        
+        .item-value { text-align: right; }
+        .item-value small { display: block; font-size: 0.7rem; color: #9ca3af; }
+
+        .btn-del {
+            color: #ef4444;
+            background: none;
+            border: none;
+            width: auto;
+            padding: 0 0 0 15px;
+            font-size: 18px;
+        }
+
+        /* Tabela de categorias */
+        .cat-table {
+            width: 100%;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+        .cat-table td { padding: 5px 0; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align: center;">Minha Casa 🏠</h2>
+
+    <div class="summary-container">
+        <div class="card card-full">
+            <h3>Saldo Geral</h3>
+            <p id="bal-total">R$ 0,00</p>
+        </div>
+        <div class="card">
+            <h3>Entradas</h3>
+            <p id="bal-in" class="txt-income">R$ 0,00</p>
+        </div>
+        <div class="card">
+            <h3>Saídas</h3>
+            <p id="bal-out" class="txt-expense">R$ 0,00</p>
+        </div>
+    </div>
+
+    <div class="form-box">
+        <input type="text" id="desc" placeholder="O que você comprou/recebeu?">
+        <input type="number" id="val" placeholder="Valor R$" step="0.01">
+        <select id="cat">
+            <option value="Salário">💰 Salário / Renda</option>
+            <option value="Mercado">🛒 Mercado</option>
+            <option value="Moradia">🏠 Aluguel / Contas</option>
+            <option value="Lazer">🍕 Lazer / Comer fora</option>
+            <option value="Saúde">💊 Saúde / Farmácia</option>
+            <option value="Transporte">🚗 Transporte / Combustível</option>
+            <option value="Outros">⚙️ Outros</option>
+        </select>
+        <select id="type">
+            <option value="out">Despesa (Saída)</option>
+            <option value="in">Receita (Entrada)</option>
+        </select>
+        <button onclick="save()">Registrar</button>
+    </div>
+
+    <h3 style="margin-left: 10px;">Lançamentos Recentes</h3>
+    <div id="list" class="history-list"></div>
+
+    <div class="card" style="margin-top: 20px;">
+        <h3>Gastos por Categoria</h3>
+        <table id="cat-summary" class="cat-table"></table>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('home_finance')) || [];
+
+        function save() {
+            const desc = document.getElementById('desc').value;
+            const val = document.getElementById('val').value;
+            const cat = document.getElementById('cat').value;
+            const type = document.getElementById('type').value;
+
+            if(!desc || !val) return alert("Preencha descrição e valor!");
+
+            const entry = {
+                id: Date.now(),
+                desc,
+                val: parseFloat(val),
+                cat,
+                type,
+                date: new Date().toLocaleDateString('pt-BR')
+            };
+
+            db.push(entry);
+            update();
+            
+            document.getElementById('desc').value = '';
+            document.getElementById('val').value = '';
+        }
+
+        function remove(id) {
+            db = db.filter(i => i.id !== id);
+            update();
+        }
+
+        function update() {
+            localStorage.setItem('home_finance', JSON.stringify(db));
+            const listEl = document.getElementById('list');
+            const catEl = document.getElementById('cat-summary');
+            listEl.innerHTML = '';
+            catEl.innerHTML = '';
+
+            let totalIn = 0, totalOut = 0;
+            let catTotals = {};
+
+            db.slice().reverse().forEach(i => {
+                if(i.type === 'in') totalIn += i.val;
+                else {
+                    totalOut += i.val;
+                    catTotals[i.cat] = (catTotals[i.cat] || 0) + i.val;
+                }
+
+                listEl.innerHTML += `
+                    <div class="item">
+                        <div class="item-info">
+                            <b>${i.desc}</b>
+                            <span>${i.cat} • ${i.date}</span>
+                        </div>
+                        <div class="item-value">
+                            <span class="${i.type === 'in' ? 'txt-income' : 'txt-expense'}">
+                                ${i.type === 'in' ? '+' : '-'} R$ ${i.val.toFixed(2)}
+                            </span>
+                            <button class="btn-del" onclick="remove(${i.id})">×</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Atualiza Tabela de Categorias
+            for (let cat in catTotals) {
+                catEl.innerHTML += `<tr><td>${cat}</td><td style="text-align:right">R$ ${catTotals[cat].toFixed(2)}</td></tr>`;
+            }
+
+            document.getElementById('bal-in').innerText = `R$ ${totalIn.toFixed(2)}`;
+            document.getElementById('bal-out').innerText = `R$ ${totalOut.toFixed(2)}`;
+            document.getElementById('bal-total').innerText = `R$ ${(totalIn - totalOut).toFixed(2)}`;
+        }
+
+        update();
+    </script>
+</body>
+</html>
